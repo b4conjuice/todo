@@ -1,15 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { type NextPage } from 'next'
 import classnames from 'classnames'
 import { type Note } from '@prisma/client'
 import {
+  ArrowDownOnSquareIcon,
   CheckCircleIcon,
   PlusIcon,
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/solid'
 import { Footer, Loading, Main, FooterListItem } from '@bacondotbuild/ui'
-import debounce from 'awesome-debounce-promise'
 
 import Layout from '@/components/layout'
 import { api } from '@/utils/api'
@@ -119,6 +119,23 @@ const ChecklistItem = ({
   )
 }
 
+const bodyToItems = (body: string) =>
+  body.split('\n').map(item => {
+    const [name, checked] = item.split('\t')
+    return {
+      name: name ?? '',
+      checked: checked === 'x',
+    }
+  })
+
+const itemsToBody = (items: Item[]) =>
+  items
+    .map(item => {
+      const { name, checked } = item
+      return `${name}\t${checked ? 'x' : 'o'}`
+    })
+    .join('\n')
+
 const Home: NextPage = () => {
   const {
     data: note,
@@ -153,50 +170,28 @@ const Home: NextPage = () => {
     },
   })
 
-  const items = ((note?.body as string) ?? '').split('\n').map(item => {
-    const [name, checked] = item.split('\t')
-    return {
-      name: name ?? '',
-      checked: checked === 'x',
-    }
-  })
+  const [items, setItems] = useState(bodyToItems((note?.body as string) ?? ''))
+  useEffect(() => {
+    setItems(bodyToItems((note?.body as string) ?? ''))
+  }, [note])
 
-  // const updateNoteDebounced = debounce(updateNote, 500)
   const sortByChecked = ({ checked: b }: Item, { checked: a }: Item) =>
     b === a ? 0 : b ? 1 : -1
   const updateItems = (newItems: Item[]) => {
-    console.log({ newItems })
     const sortedItems = [...newItems].sort(sortByChecked)
-
-    const newBody = sortedItems
-      .map(item => {
-        const { name, checked } = item
-        return `${name}\t${checked ? 'x' : 'o'}`
-      })
-      .join('\n')
-    const newNote = {
-      ...note,
-      text: `${note?.title ?? ''}\n\n${newBody}`,
-      body: newBody,
-      author: note?.author ?? '',
-    }
-    // updateNoteDebounced(newNote)
-    updateNote(newNote)
-    // if (sync) updateChecklist(sorted)
+    setItems(sortedItems)
   }
 
   const addItem = () => {
     const newItems = [
       { name: '', checked: false },
-
       ...items.map(({ name, checked }) => ({ name, checked })),
     ]
-
     updateItems(newItems)
   }
   return (
     <Layout>
-      <Main className='flex flex-col p-4'>
+      <Main className='flex flex-col px-4'>
         <div className='flex flex-grow flex-col items-center space-y-4'>
           <input
             type='text'
@@ -253,6 +248,21 @@ const Home: NextPage = () => {
           }}
         >
           <PlusIcon className='h-6 w-6' />
+        </FooterListItem>
+        <FooterListItem
+          onClick={() => {
+            const newBody = itemsToBody(items)
+            const newNote = {
+              ...note,
+              text: `${note?.title ?? ''}\n\n${newBody}`,
+              body: newBody,
+              author: note?.author ?? '',
+            }
+            updateNote(newNote)
+          }}
+          disabled={itemsToBody(items) === note?.body}
+        >
+          <ArrowDownOnSquareIcon className='h-6 w-6' />
         </FooterListItem>
       </Footer>
     </Layout>
