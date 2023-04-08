@@ -4,12 +4,20 @@ import classnames from 'classnames'
 import { type Note } from '@prisma/client'
 import {
   ArrowDownOnSquareIcon,
+  ArrowsUpDownIcon,
+  CheckBadgeIcon,
   CheckCircleIcon,
   PlusIcon,
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/solid'
-import { Footer, Loading, Main, FooterListItem } from '@bacondotbuild/ui'
+import {
+  Footer,
+  Loading,
+  Main,
+  FooterListItem,
+  DragDropList,
+} from '@bacondotbuild/ui'
 
 import Layout from '@/components/layout'
 import { api } from '@/utils/api'
@@ -36,7 +44,6 @@ const Delete = ({
       {confirmDelete ? (
         <>
           <button
-            className='delete'
             type='button'
             disabled={isSubmitting}
             onClick={() => {
@@ -51,21 +58,12 @@ const Delete = ({
             )}
           </button>
 
-          <button
-            className='delete-cancel'
-            type='button'
-            onClick={() => setConfirmDelete(false)}
-          >
+          <button type='button' onClick={() => setConfirmDelete(false)}>
             <XMarkIcon className='h-6 w-6' />
           </button>
         </>
       ) : (
-        <button
-          className='delete'
-          type='button'
-          {...props}
-          onClick={() => setConfirmDelete(true)}
-        >
+        <button type='button' {...props} onClick={() => setConfirmDelete(true)}>
           {children}
         </button>
       )}
@@ -80,19 +78,20 @@ const ChecklistItem = ({
   deleteItem,
 }: {
   item: Item
-  toggleCheck: () => void
-  editItem: (name: string) => void
-  deleteItem: () => void
+  toggleCheck?: () => void
+  editItem?: (name: string) => void
+  deleteItem?: () => void
 }) => {
   const { name, checked } = item
   return (
     <>
       <input
+        className='bg-cb-dark-blue disabled:pointer-events-none disabled:opacity-25'
         type='checkbox'
         checked={checked}
         onChange={toggleCheck}
         readOnly={!toggleCheck}
-        className='bg-cb-dark-blue'
+        disabled={!toggleCheck}
       />
       <input
         // ref={ref}
@@ -107,7 +106,9 @@ const ChecklistItem = ({
         type='text'
         name='item'
         value={name}
-        onChange={e => editItem(e.target.value)}
+        onChange={e => {
+          if (editItem) editItem(e.target.value)
+        }}
       />
 
       {deleteItem && (
@@ -170,6 +171,7 @@ const Home: NextPage = () => {
     },
   })
 
+  const [editListOrder, setEditListOrder] = useState(false)
   const [items, setItems] = useState(bodyToItems((note?.body as string) ?? ''))
   useEffect(() => {
     setItems(bodyToItems((note?.body as string) ?? ''))
@@ -200,6 +202,21 @@ const Home: NextPage = () => {
           />
           {isLoading ? (
             <Loading />
+          ) : editListOrder ? (
+            <DragDropList
+              items={items.map((item, index) => ({
+                ...item,
+                id: `${item.name}-${index}`,
+              }))}
+              renderItem={(item: Item) => (
+                <div className='flex items-center gap-4 bg-cobalt px-4'>
+                  <ChecklistItem item={item} />
+                  <ArrowsUpDownIcon className='h-6 w-6' />
+                </div>
+              )}
+              setItems={updateItems}
+              listContainerClassName='space-y-4 w-full'
+            />
           ) : (
             <ul className='w-full space-y-4'>
               {items.map((item, index) => (
@@ -242,6 +259,15 @@ const Home: NextPage = () => {
         </div>
       </Main>
       <Footer>
+        {editListOrder ? (
+          <FooterListItem onClick={() => setEditListOrder(false)}>
+            <CheckBadgeIcon className='h-6 w-6' />
+          </FooterListItem>
+        ) : (
+          <FooterListItem onClick={() => setEditListOrder(true)}>
+            <ArrowsUpDownIcon className='h-6 w-6' />
+          </FooterListItem>
+        )}
         <FooterListItem
           onClick={() => {
             addItem()
