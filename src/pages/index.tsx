@@ -91,23 +91,34 @@ const ChecklistItem = ({
         readOnly={!toggleCheck}
         disabled={!toggleCheck}
       />
-      <input
-        // ref={ref}
-        className={classnames(
-          checked
-            ? 'line-through disabled:pointer-events-none disabled:opacity-25'
-            : '',
-          'w-full border-none bg-transparent'
-        )}
-        readOnly={checked || !editItem}
-        disabled={checked || !editItem}
-        type='text'
-        name='item'
-        value={name}
-        onChange={e => {
-          if (editItem) editItem(e.target.value)
-        }}
-      />
+      {editItem ? (
+        <input
+          // ref={ref}
+          className={classnames(
+            checked
+              ? 'line-through disabled:pointer-events-none disabled:opacity-25'
+              : '',
+            'grow border-none bg-transparent'
+          )}
+          readOnly={checked || !editItem}
+          disabled={checked || !editItem}
+          type='text'
+          name='item'
+          value={name}
+          onChange={e => {
+            if (editItem) editItem(e.target.value)
+          }}
+        />
+      ) : (
+        <span
+          className={classnames(
+            checked ? 'line-through opacity-25' : '',
+            'grow px-3 py-2'
+          )}
+        >
+          {name}
+        </span>
+      )}
 
       {deleteItem && (
         <Delete handleDelete={deleteItem}>
