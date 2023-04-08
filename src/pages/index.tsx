@@ -177,6 +177,23 @@ const Home: NextPage = () => {
     setItems(bodyToItems((note?.body as string) ?? ''))
   }, [note])
 
+  const duplicates = Object.entries(
+    items.reduce((list: Record<string, number>, item: Item) => {
+      const { name } = item
+
+      if (list[name]) list[name] += 1
+      else list[name] = 1
+
+      return list
+    }, {})
+  ).reduce((list: string[], entry) => {
+    const [key, value] = entry
+
+    if (value > 1) list.push(key)
+
+    return list
+  }, [])
+
   const sortByChecked = ({ checked: b }: Item, { checked: a }: Item) =>
     b === a ? 0 : b ? 1 : -1
   const updateItems = (newItems: Item[]) => {
@@ -191,6 +208,9 @@ const Home: NextPage = () => {
     ]
     updateItems(newItems)
   }
+
+  const isDuplicate = (name: string) =>
+    duplicates.some(duplicate => duplicate === name)
   return (
     <Layout>
       <Main className='flex flex-col px-4'>
@@ -209,7 +229,12 @@ const Home: NextPage = () => {
                 id: `${item.name}-${index}`,
               }))}
               renderItem={(item: Item) => (
-                <div className='flex items-center gap-4 bg-cobalt px-4'>
+                <div
+                  className={classnames(
+                    'flex items-center gap-4 bg-cobalt px-4',
+                    isDuplicate(item.name) && 'border-l-4 border-cb-pink'
+                  )}
+                >
                   <ChecklistItem item={item} />
                   <ArrowsUpDownIcon className='h-6 w-6' />
                 </div>
@@ -222,8 +247,10 @@ const Home: NextPage = () => {
               {items.map((item, index) => (
                 <li
                   key={index}
-                  // className={isDuplicate(item.name) ? 'duplicate' : ''}
-                  className='flex items-center gap-4 bg-cobalt px-4'
+                  className={classnames(
+                    'flex items-center gap-4 bg-cobalt px-4',
+                    isDuplicate(item.name) && 'border-l-4 border-cb-pink'
+                  )}
                 >
                   <ChecklistItem
                     item={item}
