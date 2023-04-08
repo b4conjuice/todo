@@ -7,6 +7,7 @@ import {
   ArrowsUpDownIcon,
   CheckBadgeIcon,
   CheckCircleIcon,
+  MagnifyingGlassIcon,
   PlusIcon,
   TrashIcon,
   XMarkIcon,
@@ -21,11 +22,8 @@ import {
 
 import Layout from '@/components/layout'
 import { api } from '@/utils/api'
-
-type Item = {
-  name: string
-  checked: boolean
-}
+import useSearch from '@/utils/useSearch'
+import { type Item } from '@/utils/types'
 
 const Delete = ({
   handleDelete,
@@ -177,6 +175,14 @@ const Home: NextPage = () => {
     setItems(bodyToItems((note?.body as string) ?? ''))
   }, [note])
 
+  const { search, setSearch, results, searchRef } = useSearch({
+    list: items || [],
+
+    options: {
+      keys: ['name'],
+    },
+  })
+
   const duplicates = Object.entries(
     items.reduce((list: Record<string, number>, item: Item) => {
       const { name } = item
@@ -211,15 +217,36 @@ const Home: NextPage = () => {
 
   const isDuplicate = (name: string) =>
     duplicates.some(duplicate => duplicate === name)
+
   return (
     <Layout>
       <Main className='flex flex-col px-4'>
         <div className='flex flex-grow flex-col items-center space-y-4'>
-          <input
-            type='text'
-            placeholder='search'
-            className='w-full bg-cb-dark-blue'
-          />
+          <div className='flex w-full'>
+            <input
+              ref={searchRef}
+              className='grow bg-cb-dark-blue'
+              type='text'
+              placeholder='search'
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => {
+                const { key } = e
+                if (key === 'Escape') {
+                  setSearch('')
+                }
+              }}
+            />
+            {search !== '' && (
+              <button
+                type='button'
+                disabled={search === ''}
+                onClick={() => setSearch('')}
+              >
+                <XMarkIcon className='h-6 w-6' />
+              </button>
+            )}
+          </div>
           {isLoading ? (
             <Loading />
           ) : editListOrder ? (
@@ -244,48 +271,57 @@ const Home: NextPage = () => {
             />
           ) : (
             <ul className='w-full space-y-4'>
-              {items.map((item, index) => (
-                <li
-                  key={index}
-                  className={classnames(
-                    'flex items-center gap-4 bg-cobalt px-4',
-                    isDuplicate(item.name) && 'border-l-4 border-cb-pink'
-                  )}
-                >
-                  <ChecklistItem
-                    item={item}
-                    toggleCheck={() => {
-                      const newItems = [...items]
+              {(search !== '' && results.length > 0 ? results : items).map(
+                (item, index) => (
+                  <li
+                    key={index}
+                    className={classnames(
+                      'flex items-center gap-4 bg-cobalt px-4',
+                      isDuplicate(item.name) && 'border-l-4 border-cb-pink'
+                    )}
+                  >
+                    <ChecklistItem
+                      item={item}
+                      toggleCheck={() => {
+                        const newItems = [...items]
 
-                      const newChecked = !newItems[index]?.checked
-                      const item = newItems[index]
-                      if (item) item.checked = newChecked
+                        const newChecked = !newItems[index]?.checked
+                        const item = newItems[index]
+                        if (item) item.checked = newChecked
 
-                      updateItems(newItems)
-                    }}
-                    editItem={(name: string) => {
-                      const newItems = [...items]
+                        updateItems(newItems)
+                      }}
+                      editItem={(name: string) => {
+                        const newItems = [...items]
 
-                      const item = newItems[index]
-                      if (item) item.name = name
+                        const item = newItems[index]
+                        if (item) item.name = name
 
-                      updateItems(newItems)
-                    }}
-                    deleteItem={() => {
-                      const newItems = [...items]
+                        updateItems(newItems)
+                      }}
+                      deleteItem={() => {
+                        const newItems = [...items]
 
-                      newItems.splice(index, 1)
+                        newItems.splice(index, 1)
 
-                      updateItems(newItems)
-                    }}
-                  />
-                </li>
-              ))}
+                        updateItems(newItems)
+                      }}
+                    />
+                  </li>
+                )
+              )}
             </ul>
           )}
         </div>
       </Main>
       <Footer>
+        <FooterListItem
+          onClick={() => {
+            searchRef?.current?.focus()
+          }}
+        >
+          <MagnifyingGlassIcon className='h-6 w-6' />
+        </FooterListItem>
         {editListOrder ? (
           <FooterListItem onClick={() => setEditListOrder(false)}>
             <CheckBadgeIcon className='h-6 w-6' />
