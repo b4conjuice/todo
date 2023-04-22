@@ -229,8 +229,15 @@ const Home: NextPage = () => {
   const isDuplicate = (name: string) =>
     duplicates.some(duplicate => duplicate === name)
 
+  const unsavedChanges = itemsToBody(items) !== note?.body
   return (
     <Layout>
+      <div
+        className={classnames(
+          unsavedChanges && 'border-4 border-cb-pink',
+          'pointer-events-none absolute h-full w-full bg-transparent'
+        )}
+      ></div>
       <Main className='flex flex-col px-4'>
         <div className='flex flex-grow flex-col items-center space-y-4'>
           <div className='flex w-full'>
@@ -295,26 +302,20 @@ const Home: NextPage = () => {
                       item={item}
                       toggleCheck={() => {
                         const newItems = [...items]
-
                         const newChecked = !newItems[index]?.checked
                         const item = newItems[index]
                         if (item) item.checked = newChecked
-
                         updateItems(newItems)
                       }}
                       editItem={(name: string) => {
                         const newItems = [...items]
-
                         const item = newItems[index]
                         if (item) item.name = name
-
                         updateItems(newItems)
                       }}
                       deleteItem={() => {
                         const newItems = [...items]
-
                         newItems.splice(index, 1)
-
                         updateItems(newItems)
                       }}
                     />
@@ -325,6 +326,11 @@ const Home: NextPage = () => {
           )}
         </div>
       </Main>
+      {unsavedChanges && (
+        <div className='sticky bottom-0 mx-4 mb-2 text-end font-bold text-cb-pink'>
+          unsaved changes!
+        </div>
+      )}
       <Footer>
         <FooterListItem
           onClick={() => {
@@ -360,7 +366,7 @@ const Home: NextPage = () => {
             }
             updateNote(newNote)
           }}
-          disabled={itemsToBody(items) === note?.body}
+          disabled={!unsavedChanges}
         >
           <ArrowDownOnSquareIcon className='h-6 w-6' />
         </FooterListItem>
