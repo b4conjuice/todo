@@ -229,7 +229,7 @@ const Home: NextPage = () => {
   const isDuplicate = (name: string) =>
     duplicates.some(duplicate => duplicate === name)
 
-  const unsavedChanges = itemsToBody(items) !== note?.body
+  const unsavedChanges = note && itemsToBody(items) !== note?.body
   return (
     <Layout>
       <div
