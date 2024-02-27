@@ -5,7 +5,7 @@ import { createTRPCRouter, publicProcedure } from '../trpc'
 const id = process.env.TODOS_ID ?? ''
 
 export const notesRouter = createTRPCRouter({
-  get: publicProcedure.query(async ({ ctx }) => {
+  getHome: publicProcedure.query(async ({ ctx }) => {
     try {
       return await ctx.prisma.note.findFirstOrThrow({
         where: {
@@ -16,6 +16,19 @@ export const notesRouter = createTRPCRouter({
       console.log(error)
     }
   }),
+  get: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        return await ctx.prisma.note.findFirstOrThrow({
+          where: {
+            id: input.id,
+          },
+        })
+      } catch (error) {
+        console.log(error)
+      }
+    }),
   save: publicProcedure
     .input(
       z.object({

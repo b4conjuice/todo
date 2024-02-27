@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/router'
 import classnames from 'classnames'
 import { type Note } from '@prisma/client'
 import {
@@ -145,13 +146,16 @@ const itemsToBody = (items: Item[]) =>
     })
     .join('\n')
 
-export default function Home() {
+export default function CheckListPage() {
+  const {
+    query: { id },
+  } = useRouter()
   const {
     data: note,
     // refetch,
     // isRefetching,
     isLoading,
-  } = api.notes.getHome.useQuery()
+  } = api.notes.get.useQuery({ id: id as string })
 
   const utils = api.useContext()
   const { mutate: updateNote } = api.notes.save.useMutation({
@@ -164,14 +168,14 @@ export default function Home() {
       const prevData = utils.notes.get.getData()
 
       // Optimistically update the data with our new post
-      utils.notes.getHome.setData(undefined, () => newNote as Note)
+      utils.notes.get.setData({ id: id as string }, () => newNote as Note)
 
       // Return the previous data so we can revert if something goes wrong
       return { prevData }
     },
     onError(err, newNote, ctx) {
       // If the mutation fails, use the context-value from onMutate
-      utils.notes.getHome.setData(undefined, ctx?.prevData)
+      utils.notes.get.setData({ id: id as string }, ctx?.prevData)
     },
     async onSettled() {
       // Sync with server once mutation has settled
@@ -181,6 +185,7 @@ export default function Home() {
 
   const [editListOrder, setEditListOrder] = useState(false)
   const [items, setItems] = useState(bodyToItems((note?.body as string) ?? ''))
+  const title = (note?.title ?? '').replace('= ', '')
   useEffect(() => {
     setItems(bodyToItems((note?.body as string) ?? ''))
   }, [note])
@@ -230,7 +235,7 @@ export default function Home() {
 
   const unsavedChanges = note && itemsToBody(items) !== note?.body
   return (
-    <Layout>
+    <Layout title={title}>
       <div
         className={classnames(
           unsavedChanges && 'border-4 border-cb-pink',
