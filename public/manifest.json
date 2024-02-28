@@ -2,7 +2,5 @@
   "name": "todo",
   "short_name": "todo",
   "lang": "en-US",
-  "start_url": "/",
-  "display": "standalone",
-  "scope": "/"
+  "display": "standalone"
 }
