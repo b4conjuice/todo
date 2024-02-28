@@ -6,10 +6,8 @@ import {
   ArrowDownOnSquareIcon,
   ArrowsUpDownIcon,
   CheckBadgeIcon,
-  CheckCircleIcon,
   MagnifyingGlassIcon,
   PlusIcon,
-  TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/solid'
 import {
@@ -21,141 +19,18 @@ import {
 } from '@bacondotbuild/ui'
 
 import Layout from '@/components/layout'
+import ChecklistItem from '@/components/checklist-item'
 import { api } from '@/utils/api'
 import useSearch from '@/utils/useSearch'
 import { type Item } from '@/utils/types'
-
-const Delete = ({
-  handleDelete,
-  isSubmitting,
-  children,
-  ...props
-}: {
-  handleDelete: () => void
-  isSubmitting?: boolean
-  children: React.ReactNode
-}) => {
-  const [confirmDelete, setConfirmDelete] = useState(false)
-
-  return (
-    <>
-      {confirmDelete ? (
-        <>
-          <button
-            type='button'
-            disabled={isSubmitting}
-            onClick={() => {
-              setConfirmDelete(false)
-              handleDelete()
-            }}
-          >
-            {isSubmitting ? (
-              <CheckCircleIcon className='h-6 w-6' />
-            ) : (
-              <CheckCircleIcon className='h-6 w-6' />
-            )}
-          </button>
-
-          <button type='button' onClick={() => setConfirmDelete(false)}>
-            <XMarkIcon className='h-6 w-6' />
-          </button>
-        </>
-      ) : (
-        <button type='button' {...props} onClick={() => setConfirmDelete(true)}>
-          {children}
-        </button>
-      )}
-    </>
-  )
-}
-
-const ChecklistItem = ({
-  item,
-  toggleCheck,
-  editItem,
-  deleteItem,
-}: {
-  item: Item
-  toggleCheck?: () => void
-  editItem?: (name: string) => void
-  deleteItem?: () => void
-}) => {
-  const { name, checked } = item
-  return (
-    <>
-      <input
-        className='bg-cb-dark-blue disabled:pointer-events-none disabled:opacity-25'
-        type='checkbox'
-        checked={checked}
-        onChange={toggleCheck}
-        readOnly={!toggleCheck}
-        disabled={!toggleCheck}
-      />
-      {editItem ? (
-        <input
-          // ref={ref}
-          className={classnames(
-            checked
-              ? 'line-through disabled:pointer-events-none disabled:opacity-25'
-              : '',
-            'grow border-none bg-transparent'
-          )}
-          readOnly={checked || !editItem}
-          disabled={checked || !editItem}
-          type='text'
-          name='item'
-          value={name}
-          onChange={e => {
-            if (editItem) editItem(e.target.value)
-          }}
-        />
-      ) : (
-        <span
-          className={classnames(
-            checked ? 'line-through opacity-25' : '',
-            'grow px-3 py-2'
-          )}
-        >
-          {name}
-        </span>
-      )}
-
-      {deleteItem && (
-        <Delete handleDelete={deleteItem}>
-          <TrashIcon className='h-6 w-6' />
-        </Delete>
-      )}
-    </>
-  )
-}
-
-const bodyToItems = (body: string) =>
-  body.split('\n').map(item => {
-    const [name, checked] = item.split('\t')
-    return {
-      name: name ?? '',
-      checked: checked === 'x',
-    }
-  })
-
-const itemsToBody = (items: Item[]) =>
-  items
-    .map(item => {
-      const { name, checked } = item
-      return `${name}\t${checked ? 'x' : 'o'}`
-    })
-    .join('\n')
+import { itemsToBody, bodyToItems } from '@/utils/item-transforms'
+import getDuplicates from '@/utils/getDuplicates'
 
 export default function CheckListPage() {
   const {
     query: { id },
   } = useRouter()
-  const {
-    data: note,
-    // refetch,
-    // isRefetching,
-    isLoading,
-  } = api.notes.get.useQuery({ id: id as string })
+  const { data: note, isLoading } = api.notes.get.useQuery({ id: id as string })
 
   const utils = api.useContext()
   const { mutate: updateNote } = api.notes.save.useMutation({
@@ -198,22 +73,7 @@ export default function CheckListPage() {
     },
   })
 
-  const duplicates = Object.entries(
-    items.reduce((list: Record<string, number>, item: Item) => {
-      const { name } = item
-
-      if (list[name]) list[name] += 1
-      else list[name] = 1
-
-      return list
-    }, {})
-  ).reduce((list: string[], entry) => {
-    const [key, value] = entry
-
-    if (value > 1) list.push(key)
-
-    return list
-  }, [])
+  const duplicates = getDuplicates(items)
 
   const sortByChecked = ({ checked: b }: Item, { checked: a }: Item) =>
     b === a ? 0 : b ? 1 : -1
@@ -306,20 +166,29 @@ export default function CheckListPage() {
                       item={item}
                       toggleCheck={() => {
                         const newItems = [...items]
-                        const newChecked = !newItems[index]?.checked
-                        const item = newItems[index]
-                        if (item) item.checked = newChecked
+                        const idx = newItems.findIndex(
+                          i => i.name === item.name
+                        )
+                        const newChecked = !newItems[idx]?.checked
+                        const newItem = newItems[idx]
+                        if (newItem) newItem.checked = newChecked
                         updateItems(newItems)
                       }}
                       editItem={(name: string) => {
                         const newItems = [...items]
-                        const item = newItems[index]
-                        if (item) item.name = name
+                        const idx = newItems.findIndex(
+                          i => i.name === item.name
+                        )
+                        const newItem = newItems[idx]
+                        if (newItem) newItem.name = name
                         updateItems(newItems)
                       }}
                       deleteItem={() => {
                         const newItems = [...items]
-                        newItems.splice(index, 1)
+                        const idx = newItems.findIndex(
+                          i => i.name === item.name
+                        )
+                        newItems.splice(idx, 1)
                         updateItems(newItems)
                       }}
                     />
