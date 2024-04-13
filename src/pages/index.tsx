@@ -58,7 +58,7 @@ export default function Home() {
   const [items, setItems] = useState(bodyToItems((note?.body as string) ?? ''))
   useEffect(() => {
     setItems(bodyToItems((note?.body as string) ?? ''))
-  }, [note])
+  }, [note?.body])
 
   const { search, setSearch, results, searchRef } = useSearch({
     list: items || [],
