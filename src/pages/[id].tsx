@@ -17,6 +17,7 @@ import {
   FooterListItem,
   DragDropList,
 } from '@bacondotbuild/ui'
+import { useDebounce } from '@uidotdev/usehooks'
 
 import Layout from '@/components/layout'
 import ChecklistItem from '@/components/checklist-item'
@@ -26,12 +27,7 @@ import { type Item } from '@/utils/types'
 import { itemsToBody, bodyToItems } from '@/utils/item-transforms'
 import getDuplicates from '@/utils/getDuplicates'
 
-export default function CheckListPage() {
-  const {
-    query: { id },
-  } = useRouter()
-  const { data: note, isLoading } = api.notes.get.useQuery({ id: id as string })
-
+function CheckList({ note }: { note: Note }) {
   const utils = api.useContext()
   const { mutate: updateNote } = api.notes.save.useMutation({
     // https://create.t3.gg/en/usage/trpc#optimistic-updates
@@ -43,14 +39,14 @@ export default function CheckListPage() {
       const prevData = utils.notes.get.getData()
 
       // Optimistically update the data with our new post
-      utils.notes.get.setData({ id: id as string }, () => newNote as Note)
+      utils.notes.get.setData({ id: note.id }, () => newNote as Note)
 
       // Return the previous data so we can revert if something goes wrong
       return { prevData }
     },
     onError(err, newNote, ctx) {
       // If the mutation fails, use the context-value from onMutate
-      utils.notes.get.setData({ id: id as string }, ctx?.prevData)
+      utils.notes.get.setData({ id: note.id }, ctx?.prevData)
     },
     async onSettled() {
       // Sync with server once mutation has settled
@@ -59,11 +55,30 @@ export default function CheckListPage() {
   })
 
   const [editListOrder, setEditListOrder] = useState(false)
-  const [items, setItems] = useState(bodyToItems((note?.body as string) ?? ''))
+  const [items, setItems] = useState(bodyToItems(note?.body ?? ''))
+  const debouncedItems = useDebounce(items, 500)
   const title = (note?.title ?? '').replace('= ', '')
+
   useEffect(() => {
-    setItems(bodyToItems((note?.body as string) ?? ''))
-  }, [note])
+    function syncNote() {
+      const newBody = itemsToBody(items)
+      const newNote = {
+        ...note,
+        text: `${note?.title ?? ''}\n\n${newBody}`,
+        body: newBody,
+        author: note?.author ?? '',
+      }
+      updateNote(newNote)
+    }
+
+    syncNote()
+  }, [debouncedItems])
+  const sortByChecked = ({ checked: b }: Item, { checked: a }: Item) =>
+    b === a ? 0 : b ? 1 : -1
+  const updateItems = (newItems: Item[]) => {
+    const sortedItems = [...newItems].sort(sortByChecked)
+    setItems(sortedItems)
+  }
 
   const { search, setSearch, results, searchRef } = useSearch({
     list: items || [],
@@ -74,13 +89,6 @@ export default function CheckListPage() {
   })
 
   const duplicates = getDuplicates(items)
-
-  const sortByChecked = ({ checked: b }: Item, { checked: a }: Item) =>
-    b === a ? 0 : b ? 1 : -1
-  const updateItems = (newItems: Item[]) => {
-    const sortedItems = [...newItems].sort(sortByChecked)
-    setItems(sortedItems)
-  }
 
   const addItem = () => {
     const newItems = [
@@ -96,12 +104,6 @@ export default function CheckListPage() {
   const unsavedChanges = note && itemsToBody(items) !== note?.body
   return (
     <Layout title={title}>
-      <div
-        className={classnames(
-          unsavedChanges && 'border-4 border-cb-pink',
-          'pointer-events-none absolute h-full w-full bg-transparent'
-        )}
-      ></div>
       <Main className='flex flex-col px-4'>
         <div className='flex flex-grow flex-col items-center space-y-4'>
           <div className='flex w-full'>
@@ -129,9 +131,7 @@ export default function CheckListPage() {
               </button>
             )}
           </div>
-          {isLoading ? (
-            <Loading />
-          ) : editListOrder ? (
+          {editListOrder ? (
             <DragDropList
               items={items.map((item, index) => ({
                 ...item,
@@ -199,11 +199,6 @@ export default function CheckListPage() {
           )}
         </div>
       </Main>
-      {unsavedChanges && (
-        <div className='sticky bottom-0 mx-4 mb-2 text-end font-bold text-cb-pink'>
-          unsaved changes!
-        </div>
-      )}
       <Footer>
         <FooterListItem
           onClick={() => {
@@ -246,4 +241,19 @@ export default function CheckListPage() {
       </Footer>
     </Layout>
   )
+}
+
+export default function CheckListPage() {
+  const {
+    query: { id },
+  } = useRouter()
+  const { data: note, isLoading } = api.notes.get.useQuery({ id: id as string })
+
+  if (!note || isLoading)
+    return (
+      <Layout>
+        <Loading />
+      </Layout>
+    )
+  return <CheckList note={note} />
 }
